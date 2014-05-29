@@ -1,7 +1,7 @@
 # Configuration
-$GecosCCAPIUrl = "http://192.168.11.219/api/ad_import/"
-$GecosCCAPIUsername = "jsalvador"
-$GecosCCAPIPassword = "bi1bre7t"
+$GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # This is a demo GecosCCUI
+$GecosCCAPIUsername = "admin"
+$GecosCCAPIPassword = "admin"
 
 # PowerShell v2
 $PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
@@ -22,45 +22,31 @@ function Add-XmlElement {
 		}
 	}
 }
-function ConvertTo-Base64($string) {
-	$bytes  = [System.Text.Encoding]::UTF8.GetBytes($string);
+function ConvertTo-Base64() {
+	param(
+		[string] $string,
+		[System.Text.Encoding] $Encoding = [System.Text.Encoding]::Default
+	);
+	$bytes = $Encoding.GetBytes($string);
 	$encoded = [System.Convert]::ToBase64String($bytes); 
 	return $encoded;
-}
-function Get-EncodedDataFromFile() {
-	param(
-		[System.IO.FileInfo]$file = $null,
-		[string]$codePageName = $CODEPAGE
-	);
-	$data = $null;
-	if ( $file -and [System.IO.File]::Exists($file.FullName) ) {
-		$bytes = [System.IO.File]::ReadAllBytes($file.FullName);
-		if ( $bytes ) {
-			$enc = [System.Text.Encoding]::GetEncoding($codePageName);
-			$data = $enc.GetString($bytes);
-		}
-	} else {
-		Write-Host "ERROR; File '$file' does not exist";
-	}
-	$data;
 }
 function Execute-HTTPPostCommand() {
 	param(
 		[string] $url = $null,
-		[string] $data = $null,
+		[Byte[]] $bytes = $null,
 		[System.Net.NetworkCredential]$credentials = $null,
 		[string] $contentType = "application/x-www-form-urlencoded",
-		[string] $codePageName = "UTF-8",
 		[string] $userAgent = $null
     );
 
-	if ( $url -and $data ) {
+	if ( $url -and $bytes ) {
 		[System.Net.WebRequest]$webRequest = [System.Net.WebRequest]::Create($url);
 		$webRequest.ServicePoint.Expect100Continue = $false;
 		if ( $credentials ) {
 			$webRequest.Credentials = $credentials;
 			$webRequest.PreAuthenticate = $true;
-			$httpBasicAuth = ConvertTo-Base64($credentials.UserName + ":" + $credentials.Password)
+			$httpBasicAuth = ConvertTo-Base64 ($credentials.UserName + ":" + $credentials.Password)
 			$webRequest.Headers.Add("Authorization", "Basic " + $httpBasicAuth);
 		}
 		$webRequest.ContentType = $contentType;
@@ -68,9 +54,9 @@ function Execute-HTTPPostCommand() {
 		if ( $userAgent ) {
 			$webRequest.UserAgent = $userAgent;
 		}
-		
-		$enc = [System.Text.Encoding]::GetEncoding($codePageName);
-		[byte[]]$bytes = $enc.GetBytes($data);
+
+		#$enc = [System.Text.Encoding]::Default
+		#[byte[]]$bytes = $enc.GetBytes($data);
 		$webRequest.ContentLength = $bytes.Length;
 		[System.IO.Stream]$reqStream = $webRequest.GetRequestStream();
 		$reqStream.Write($bytes, 0, $bytes.Length);
@@ -86,13 +72,13 @@ function HttpPost-File() {
 	param(
 		[string]$url,
 		[System.IO.FileInfo]$file = $null,
-		[string]$contenttype = "application/octet-stream",
+		[string]$contenttype = "application/gzip",
 		[string]$username = $null,
 		[string]$password = $null
 	)
-	$CODEPAGE = "UTF-8";
 	if ( $url -and $file ) {
-		$filedata = Get-EncodedDataFromFile -file $file -codePageName $CODEPAGE;
+		$Encoding = [System.Text.Encoding]::ASCII
+		$filedata = [io.file]::ReadAllBytes($file)
 		if ( $filedata ) {
 		    $fileHeader = "Content-Disposition: file; name=""{0}""; filename=""{1}""" -f "media", $file.Name;
 
@@ -103,57 +89,73 @@ function HttpPost-File() {
 			[void]$contents.AppendLine($header);
 			[void]$contents.AppendLine($fileHeader);
 			[void]$contents.AppendLine("Content-Type: {0}" -f $contenttype);
+			[void]$contents.AppendLine("Content-Transfer-Encoding: binary");
 			[void]$contents.AppendLine();
-			[void]$contents.AppendLine($fileData);
-
-			[void]$contents.AppendLine($footer);
+			#[void]$contents.AppendLine($fileData);
 			#$contents.ToString() > ".\out.txt";
 			$postContentType = "multipart/form-data; boundary={0}" -f $boundary;
 
 			if ($username -and $password) { $credentials = New-Object System.Net.NetworkCredential($username, $password); }
 			else { $credentials = None }
-			Execute-HTTPPostcommand -url $url -data $contents.ToString() -contentType $postContentType -codePageName $CODEPAGE -credentials $credentials;
+
+			[Byte[]]$bytes = @()
+			$bytes += $Encoding.GetBytes($contents)
+			$bytes += $fileData
+			$bytes += $Encoding.GetBytes([Environment]::NewLine + $footer);
+
+			Execute-HTTPPostcommand -url $url -bytes $bytes -contentType $postContentType -credentials $credentials;
 		}
 	}
 }
+function Get-ADParent ([string] $dn) {
+	$parts = $dn -split '(?<![\\]),'
+	$parts[1..$($parts.Count-1)] -join ','
+}
 
 # Imports dependences
-Import-Module ActiveDirectory
-Import-Module "$PSScriptRoot\PowershellZip.dll"
+Import-Module "$PSScriptRoot\PSCX"
+Import-Module ActiveDirectory # Overwrite Get-ADObject
 
 # Create XML from Active Directory
 Try {
 	# Create final XML
 	$xmlDoc = New-Object System.Xml.XmlDocument
-	$xmlRoot = $xmlDoc.AppendChild($xmlDoc.CreateElement("root"))
+	$xmlRoot = $xmlDoc.AppendChild($xmlDoc.CreateElement("Domain"))
+	
+	# Global Domain information
+	$properties = "ObjectGUID", "DistinguishedName", "Name"
+	$domain = Get-ADDomain
+	foreach ($property in $properties) {
+		$xmlRoot.SetAttribute($property, $domain.$property)
+	}
 
 	# List organizational units
-	$properties = "Name"
+	$properties = "ObjectGUID", "DistinguishedName", "Name"
 	$objects = Get-ADOrganizationalUnit -Filter * -Properties $properties
 	Add-XmlElement "OrganizationalUnits" "OrganizationalUnit" $objects $properties
 
 	# List users
-	$properties = "Name"
+	$properties = "ObjectGUID", "DistinguishedName", "Name"
 	$objects = Get-ADUser -Filter * -Properties $properties
 	Add-XmlElement "Users" "User" $objects $properties
 
 	# List groups
-	$properties = "Name"
+	$properties = "ObjectGUID", "DistinguishedName", "Name"
 	$objects = Get-ADGroup -Filter * -Properties $properties
 	Add-XmlElement "Groups" "Group" $objects $properties
 
 	# List computers
-	$properties = "Name"
+	$properties = "ObjectGUID", "DistinguishedName", "Name"
 	$objects = Get-ADComputer -Filter * -Properties $properties
 	Add-XmlElement "Computers" "Computer" $objects $properties
 
 	# List printers
-	$properties = "Name","Description","uNCName"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description", "url"
 	$objects = Get-ADObject -Filter { ObjectClass -eq "printQueue" } -Properties $properties
 	Add-XmlElement "Printers" "Printer" $objects $properties
 
 	# List volumes
-	$properties = "Name","uNCName"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "uNCName"
 	$objects = Get-ADObject -Filter { ObjectClass -eq "volume" } -Properties $properties
 	Add-XmlElement "Volumes" "Volume" $objects $properties
 } Catch {
@@ -171,12 +173,13 @@ Try {
 	exit 2
 }
 
-# Save ZIP and delete XML
+# Save GZIP and delete XML
 Try {
-	$tmpZipFile = [IO.Path]::GetTempFileName()
-	Export-Zip $tmpZipFile -EntryZip "root.xml" $tmpXmlFile
+	#$tmpZipFile = [IO.Path]::GetTempFileName()
+	Write-GZip $tmpXmlFile -Quiet
+	$tmpZipFile = $tmpXmlFile + ".gz"
 } Catch {
-	$Host.UI.WriteErrorLine("ERROR: Can't write the ZIP")
+	$Host.UI.WriteErrorLine("ERROR: Can't write the GZIP")
 	exit 3
 } Finally {
 	if (($tmpXmlFile) -and (Test-Path $tmpXmlFile)) {
@@ -184,11 +187,11 @@ Try {
 	}
 }
 
-# Upload ZIP and delete it
+# Upload GZIP and delete it
 Try {
 	HttpPost-File -url $GecosCCAPIUrl -file $tmpZipFile -username $GecosCCAPIUsername -password $GecosCCAPIPassword
 } Catch {
-	$Host.UI.WriteErrorLine("ERROR: Can't upload the ZIP to '$GecosCCAPIUrl'")
+	$Host.UI.WriteErrorLine("ERROR: Can't upload the GZIP to '$GecosCCAPIUrl'")
 	exit 4
 } Finally {
 	if (($tmpZipFile) -and (Test-Path $tmpZipFile)) {
