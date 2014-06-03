@@ -137,17 +137,17 @@ Try {
 	Add-XmlElement "OrganizationalUnits" "OrganizationalUnit" $objects $properties
 
 	# List users
-	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description", "MemberOf", "PrimaryGroup", "EmailAddress", "mail"
 	$objects = Get-ADUser -Filter * -Properties $properties
 	Add-XmlElement "Users" "User" $objects $properties
 
 	# List groups
-	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description", "MemberOf"
 	$objects = Get-ADGroup -Filter * -Properties $properties
 	Add-XmlElement "Groups" "Group" $objects $properties
 
 	# List computers
-	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description", "MemberOf", "PrimaryGroup"
 	$objects = Get-ADComputer -Filter * -Properties $properties
 	Add-XmlElement "Computers" "Computer" $objects $properties
 
