@@ -130,32 +130,34 @@ Try {
 	}
 
 	# List organizational units
-	$properties = "ObjectGUID", "DistinguishedName", "Name"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description"
 	$objects = Get-ADOrganizationalUnit -Filter * -Properties $properties
+	$objects += Get-ADObject -Filter { ObjectClass -eq "container" } -Properties $properties # List containers
+	$objects += Get-ADObject -Filter { ObjectClass -eq "builtinDomain" } -Properties $properties # List builtinDomain
 	Add-XmlElement "OrganizationalUnits" "OrganizationalUnit" $objects $properties
 
 	# List users
-	$properties = "ObjectGUID", "DistinguishedName", "Name"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description"
 	$objects = Get-ADUser -Filter * -Properties $properties
 	Add-XmlElement "Users" "User" $objects $properties
 
 	# List groups
-	$properties = "ObjectGUID", "DistinguishedName", "Name"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description"
 	$objects = Get-ADGroup -Filter * -Properties $properties
 	Add-XmlElement "Groups" "Group" $objects $properties
 
 	# List computers
-	$properties = "ObjectGUID", "DistinguishedName", "Name"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description"
 	$objects = Get-ADComputer -Filter * -Properties $properties
 	Add-XmlElement "Computers" "Computer" $objects $properties
 
 	# List printers
-	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description", "url"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description", "url", "printerName", "driverName"
 	$objects = Get-ADObject -Filter { ObjectClass -eq "printQueue" } -Properties $properties
 	Add-XmlElement "Printers" "Printer" $objects $properties
 
 	# List volumes
-	$properties = "ObjectGUID", "DistinguishedName", "Name", "uNCName"
+	$properties = "ObjectGUID", "DistinguishedName", "Name", "Description", "uNCName"
 	$objects = Get-ADObject -Filter { ObjectClass -eq "volume" } -Properties $properties
 	Add-XmlElement "Volumes" "Volume" $objects $properties
 } Catch {
