@@ -1,7 +1,8 @@
 # Configuration
 $GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # This is a demo GecosCCUI
-$GecosCCAPIUsername = "admin"
-$GecosCCAPIPassword = "admin"
+$GecosCCAPIUsername = "ad-import"
+$GecosCCAPIPassword = "ad-import"
+$GecosCCAPIRootOU = "root" # Could be "root" or "_id" (see the url to get the "_id" value)
 
 # PowerShell v2
 $PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
@@ -18,7 +19,15 @@ function Add-XmlElement {
 	foreach ($object in $Objects) {
 		$xmlItem = $xmlItems.AppendChild($xmlDoc.CreateElement($ElementName))
 		foreach ($property in $ElementProperties) {
-			$xmlItem.SetAttribute($property, $object.$property)
+			if ($object.$property -is [System.Collections.CollectionBase]) {
+				$xmlMemberOf = $xmlItem.AppendChild($xmlDoc.CreateElement($property))
+				foreach ($subItem in $object.$property) {
+					$xmlSubItem = $xmlMemberOf.AppendChild($xmlDoc.CreateElement('Item'))
+					$xmlSubItem.InnerText = $subItem
+				}
+			} else {
+				$xmlItem.SetAttribute($property, $object.$property)
+			}
 		}
 	}
 }
@@ -86,13 +95,18 @@ function HttpPost-File() {
 			$header = "--{0}" -f $boundary;
 			$footer = "--{0}--" -f $boundary;
 			[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
+
+			# Añadir dato de rootOU al POST multifragmentado
+			[void]$contents.AppendLine($header);
+			[void]$contents.AppendLine("Content-Disposition:form-data;name=""rootOU""");
+			[void]$contents.AppendLine();
+			[void]$contents.AppendLine($GecosCCAPIRootOU);
+
 			[void]$contents.AppendLine($header);
 			[void]$contents.AppendLine($fileHeader);
 			[void]$contents.AppendLine("Content-Type: {0}" -f $contenttype);
 			[void]$contents.AppendLine("Content-Transfer-Encoding: binary");
 			[void]$contents.AppendLine();
-			#[void]$contents.AppendLine($fileData);
-			#$contents.ToString() > ".\out.txt";
 			$postContentType = "multipart/form-data; boundary={0}" -f $boundary;
 
 			if ($username -and $password) { $credentials = New-Object System.Net.NetworkCredential($username, $password); }
@@ -106,10 +120,6 @@ function HttpPost-File() {
 			Execute-HTTPPostcommand -url $url -bytes $bytes -contentType $postContentType -credentials $credentials;
 		}
 	}
-}
-function Get-ADParent ([string] $dn) {
-	$parts = $dn -split '(?<![\\]),'
-	$parts[1..$($parts.Count-1)] -join ','
 }
 
 # Imports dependences
