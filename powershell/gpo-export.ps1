@@ -108,7 +108,6 @@ Try {
 
 # Save GZIP and delete XML
 Try {
-	#$tmpZipFile = [IO.Path]::GetTempFileName()
 	Write-GZip $tmpXmlFile -Quiet
 	$tmpZipFile = $tmpXmlFile + ".gz"
 } Catch {
@@ -116,7 +115,7 @@ Try {
 	exit 3
 } Finally {
 	if (($tmpXmlFile) -and (Test-Path $tmpXmlFile)) {
-		#Remove-Item $tmpXmlFile
+		Remove-Item $tmpXmlFile
 	}
 }
 
