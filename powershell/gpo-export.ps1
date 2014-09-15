@@ -3,6 +3,9 @@ $GecosCCAPIUrl = "http://gecoscc/api/gpo_import/" # This is a demo GecosCCUI
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
 
+# PowerShell v2
+$PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
+
 # Global functions
 function ConvertTo-Base64() {
 	param(
@@ -20,7 +23,7 @@ function Execute-HTTPPostCommand() {
 		[System.Net.NetworkCredential]$credentials = $null,
 		[string] $contentType = "application/x-www-form-urlencoded",
 		[string] $userAgent = $null
-    );
+	);
 
 	if ( $url -and $bytes ) {
 		[System.Net.WebRequest]$webRequest = [System.Net.WebRequest]::Create($url);
@@ -50,83 +53,123 @@ function Execute-HTTPPostCommand() {
 		$sr.ReadToEnd();
 	}
 }
-function HttpPost-File() {
+function HttpPost-Files() {
 	param(
 		[string]$url,
-		[System.IO.FileInfo]$file = $null,
+		[System.IO.FileInfo[]]$files = $null,
 		[string]$contenttype = "application/gzip",
 		[string]$username = $null,
 		[string]$password = $null
 	)
-	if ( $url -and $file ) {
-		$Encoding = [System.Text.Encoding]::ASCII
-		$filedata = [io.file]::ReadAllBytes($file)
-		if ( $filedata ) {
-		    $fileHeader = "Content-Disposition: file; name=""{0}""; filename=""{1}""" -f "media", $file.Name;
+	
+	if ($url) {
+		$boundary = [System.Guid]::NewGuid().ToString();
+		$header = [Environment]::NewLine + "--{0}" -f $boundary;
+		$footer = [Environment]::NewLine + "--{0}--" -f $boundary;
+		$postContentType = "multipart/form-data; boundary={0}" -f $boundary;
+		if ($username -and $password) { $credentials = New-Object System.Net.NetworkCredential($username, $password); }
+		else { $credentials = None }
+		[Byte[]]$bytes = @()
+		$fileCounter = 0
+		ForEach($file in $files) {
+			$Encoding = [System.Text.Encoding]::ASCII
+			$filedata = [io.file]::ReadAllBytes($file)
+			if ( $filedata ) {
+				[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
+				[void]$contents.AppendLine($header);
+				$fileHeader = "Content-Disposition: file; name=""{0}""; filename=""{1}""" -f $("media" + $fileCounter++), $file.Name;
+				[void]$contents.AppendLine($fileHeader);
+				[void]$contents.AppendLine("Content-Type: {0}" -f $contenttype);
+				[void]$contents.AppendLine("Content-Transfer-Encoding: binary");
+				[void]$contents.AppendLine();
 
-			$boundary = [System.Guid]::NewGuid().ToString();
-			$header = "--{0}" -f $boundary;
-			$footer = "--{0}--" -f $boundary;
-			[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
-
-			[void]$contents.AppendLine($header);
-			[void]$contents.AppendLine($fileHeader);
-			[void]$contents.AppendLine("Content-Type: {0}" -f $contenttype);
-			[void]$contents.AppendLine("Content-Transfer-Encoding: binary");
-			[void]$contents.AppendLine();
-			$postContentType = "multipart/form-data; boundary={0}" -f $boundary;
-
-			if ($username -and $password) { $credentials = New-Object System.Net.NetworkCredential($username, $password); }
-			else { $credentials = None }
-
-			[Byte[]]$bytes = @()
-			$bytes += $Encoding.GetBytes($contents)
-			$bytes += $fileData
-			$bytes += $Encoding.GetBytes([Environment]::NewLine + $footer);
-
-			Execute-HTTPPostcommand -url $url -bytes $bytes -contentType $postContentType -credentials $credentials;
+				$bytes += $Encoding.GetBytes($contents);
+				$bytes += $fileData;
+			}
 		}
+		$bytes += $Encoding.GetBytes($footer);
+		Execute-HTTPPostcommand -url $url -bytes $bytes -contentType $postContentType -credentials $credentials;
 	}
 }
 
 # Imports dependences
+Import-Module "$PSScriptRoot\PSCX"
 Import-Module GroupPolicy
+
+$files = @()
+
+# Save SID-GUID table
+Try {
+	$tmpXmlFile = [IO.Path]::GetTempFileName()
+	$xmlDoc = New-Object System.Xml.XmlDocument
+	$xmlRoot = $xmlDoc.AppendChild($xmlDoc.CreateElement("items"))
+	$users = Get-ADUser -Filter {*} -Properties @("SID","ObjectGUID")
+	ForEach ($user in $users) {
+		$xmlElement = $xmlDoc.CreateElement("item");
+		$xmlElement.SetAttribute("sid",$user.SID);
+		$xmlElement.SetAttribute("guid",$user.ObjectGUID);
+		$xmlRoot.AppendChild($xmlElement)
+	}
+	$groups = Get-ADGroup -Filter {*} -Properties @("SID","ObjectGUID")
+	ForEach ($group in $groups) {
+		$xmlElement = $xmlDoc.CreateElement("item");
+		$xmlElement.SetAttribute("sid",$group.SID);
+		$xmlElement.SetAttribute("guid",$group.ObjectGUID);
+		$xmlRoot.AppendChild($xmlElement)
+	}
+	$computers = Get-ADComputer -Filter {*} -Properties @("SID","ObjectGUID")
+	ForEach ($computer in $computers) {
+		$xmlElement = $xmlDoc.CreateElement("item");
+		$xmlElement.SetAttribute("sid",$computer.SID);
+		$xmlElement.SetAttribute("guid",$computer.ObjectGUID);
+		$xmlRoot.AppendChild($xmlElement)
+	}
+	$xmlDoc.Save($tmpXmlFile)
+	$files += $tmpXmlFile
+} Catch {
+	$Host.UI.WriteErrorLine("ERROR: Can't write the SID-GUID table to XML file")
+	exit 5
+}
 
 # Save XML
 Try {
 	$tmpXmlFile = [IO.Path]::GetTempFileName()
-	$xmldata = [string](Get-GPOReport -All -ReportType Xml)
-	$xmldata = $xmldata.Replace(" <?xml version=`"1.0`" encoding=`"utf-16`"?>", "")
-	$xmldata = $xmldata.Replace("<?xml version=`"1.0`" encoding=`"utf-16`"?>`r`n", "")
-	$xmldata = "<?xml version=`"1.0`" encoding=`"utf-8`"?>`r`n<GPOs>`r`n$xmldata`r`n</GPOs>"
-	"$xmldata" | Out-File -Encoding "UTF8" -FilePath $tmpXmlFile
-	#Get-Content $tmpXmlFile
+	Get-GPOReport -All -ReportType Xml -Path $tmpXmlFile
+	$files += $tmpXmlFile
 } Catch {
 	$Host.UI.WriteErrorLine("ERROR: Can't write the XML")
 	exit 2
 }
 
 # Save GZIP and delete XML
+$filesCompressed = @()
 Try {
-	Write-GZip $tmpXmlFile -Quiet
-	$tmpZipFile = $tmpXmlFile + ".gz"
+	ForEach ($file in $files) {
+		Write-GZip $file -Quiet
+		$tmpZipFile = $file + ".gz"
+		$filesCompressed += $tmpZipFile
+	}
 } Catch {
 	$Host.UI.WriteErrorLine("ERROR: Can't write the GZIP")
 	exit 3
 } Finally {
-	if (($tmpXmlFile) -and (Test-Path $tmpXmlFile)) {
-		Remove-Item $tmpXmlFile
+	ForEach ($file in $files) {
+		if (($file) -and (Test-Path $file)) {
+			Remove-Item $file
+		}
 	}
 }
 
 # Upload GZIP and delete it
 Try {
-	HttpPost-File -url $GecosCCAPIUrl -file $tmpZipFile -username $GecosCCAPIUsername -password $GecosCCAPIPassword
+	HttpPost-Files -url $GecosCCAPIUrl -files $filesCompressed -username $GecosCCAPIUsername -password $GecosCCAPIPassword
 } Catch {
 	$Host.UI.WriteErrorLine("ERROR: Can't upload the GZIP to '$GecosCCAPIUrl'")
 	exit 4
 } Finally {
-	if (($tmpZipFile) -and (Test-Path $tmpZipFile)) {
-		Remove-Item $tmpZipFile
+	ForEach ($file in $filesCompressed) {
+		if (($file) -and (Test-Path $file)) {
+			Remove-Item $file
+		}
 	}
 }
