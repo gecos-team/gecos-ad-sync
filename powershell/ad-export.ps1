@@ -2,8 +2,8 @@
 $GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # This is a demo GECOSCC
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "5424ba20e1382308e870ad92" # Could be "root" or "_id" (see the url to get the "_id" value)
-$GecosCCAPIMaster = 1 # Set that these nodes can't be edited by GECOSCC
+$GecosCCAPIRootOU = "5429882c2f80cc4cf31d587f" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIMaster = $True # Set that these nodes can't be edited by GECOSCC
 
 # PowerShell v2
 $PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition

@@ -2,7 +2,7 @@
 $GecosCCAPIUrl = "http://gecoscc/api/gpo_import/" # This is a demo GECOSCC
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "5424ba20e1382308e870ad92" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIRootOU = "5429882c2f80cc4cf31d587f" # Could be "root" or "_id" (see the url to get the "_id" value)
 $GecosCCAPIMasterPolicies = @("folder_sync_res", "desktop_background_res") # Policies that can't be modified by GECOSCC
 
 # PowerShell v2
