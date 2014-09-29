@@ -1,7 +1,9 @@
 ﻿# Configuration
-$GecosCCAPIUrl = "http://gecoscc/api/gpo_import/" # This is a demo GecosCCUI
+$GecosCCAPIUrl = "http://gecoscc/api/gpo_import/" # This is a demo GECOSCC
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
+$GecosCCAPIRootOU = "5424ba20e1382308e870ad92" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIMasterPolicies = @("folder_sync_res", "desktop_background_res") # Policies that can't be modified by GECOSCC
 
 # PowerShell v2
 $PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
@@ -13,7 +15,7 @@ function ConvertTo-Base64() {
 		[System.Text.Encoding] $Encoding = [System.Text.Encoding]::Default
 	);
 	$bytes = $Encoding.GetBytes($string);
-	$encoded = [System.Convert]::ToBase64String($bytes); 
+	$encoded = [System.Convert]::ToBase64String($bytes);
 	return $encoded;
 }
 function Execute-HTTPPostCommand() {
@@ -61,21 +63,43 @@ function HttpPost-Files() {
 		[string]$username = $null,
 		[string]$password = $null
 	)
-	
+
 	if ($url) {
 		$boundary = [System.Guid]::NewGuid().ToString();
-		$header = [Environment]::NewLine + "--{0}" -f $boundary;
+		$header = "--{0}" -f $boundary;
 		$footer = [Environment]::NewLine + "--{0}--" -f $boundary;
 		$postContentType = "multipart/form-data; boundary={0}" -f $boundary;
 		if ($username -and $password) { $credentials = New-Object System.Net.NetworkCredential($username, $password); }
 		else { $credentials = None }
 		[Byte[]]$bytes = @()
 		$fileCounter = 0
+		$Encoding = [System.Text.Encoding]::ASCII
+
+		# Add rootOU to POST
+		[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
+		[void]$contents.AppendLine($header);
+		[void]$contents.AppendLine("Content-Disposition:form-data;name=""rootOU""");
+		[void]$contents.AppendLine();
+		[void]$contents.AppendLine($GecosCCAPIRootOU);
+		$bytes += $Encoding.GetBytes($contents);
+
+		# Add masterPolicies to POST
+		ForEach($masterPolicy in $GecosCCAPIMasterPolicies) {
+			[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
+			[void]$contents.AppendLine($header);
+			[void]$contents.AppendLine("Content-Disposition:form-data;name=""masterPolicy[]""");
+			[void]$contents.AppendLine();
+			[void]$contents.AppendLine($masterPolicy);
+			$bytes += $Encoding.GetBytes($contents);
+		}
+
 		ForEach($file in $files) {
-			$Encoding = [System.Text.Encoding]::ASCII
 			$filedata = [io.file]::ReadAllBytes($file)
 			if ( $filedata ) {
 				[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
+				if ($notFirstTime) {
+					[void]$contents.AppendLine();
+				}
 				[void]$contents.AppendLine($header);
 				$fileHeader = "Content-Disposition: file; name=""{0}""; filename=""{1}""" -f $("media" + $fileCounter++), $file.Name;
 				[void]$contents.AppendLine($fileHeader);
@@ -86,6 +110,7 @@ function HttpPost-Files() {
 				$bytes += $Encoding.GetBytes($contents);
 				$bytes += $fileData;
 			}
+			$notFirstTime = $True
 		}
 		$bytes += $Encoding.GetBytes($footer);
 		Execute-HTTPPostcommand -url $url -bytes $bytes -contentType $postContentType -credentials $credentials;

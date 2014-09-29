@@ -1,8 +1,9 @@
-# Configuration
-$GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # This is a demo GecosCCUI
+﻿# Configuration
+$GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # This is a demo GECOSCC
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "root" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIRootOU = "5424ba20e1382308e870ad92" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIMaster = 1 # Set that these nodes can't be edited by GECOSCC
 
 # PowerShell v2
 $PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
@@ -96,11 +97,17 @@ function HttpPost-File() {
 			$footer = "--{0}--" -f $boundary;
 			[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
 
-			# Añadir dato de rootOU al POST multifragmentado
+			# Add rootOU to POST
 			[void]$contents.AppendLine($header);
 			[void]$contents.AppendLine("Content-Disposition:form-data;name=""rootOU""");
 			[void]$contents.AppendLine();
 			[void]$contents.AppendLine($GecosCCAPIRootOU);
+
+			# Add master to POST
+			[void]$contents.AppendLine($header);
+			[void]$contents.AppendLine("Content-Disposition:form-data;name=""master""");
+			[void]$contents.AppendLine();
+			[void]$contents.AppendLine($GecosCCAPIMaster);
 
 			[void]$contents.AppendLine($header);
 			[void]$contents.AppendLine($fileHeader);
