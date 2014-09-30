@@ -2,7 +2,7 @@
 $GecosCCAPIUrl = "http://gecoscc/api/gpo_import/" # This is a demo GECOSCC
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "5429882c2f80cc4cf31d587f" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIRootOU = "542a75912f80cc58e0542a89" # Could be "root" or "_id" (see the url to get the "_id" value)
 $GecosCCAPIMasterPolicies = @("folder_sync_res", "desktop_background_res") # Policies that can't be modified by GECOSCC
 
 # PowerShell v2
@@ -133,21 +133,21 @@ Try {
 		$xmlElement = $xmlDoc.CreateElement("item");
 		$xmlElement.SetAttribute("sid",$user.SID);
 		$xmlElement.SetAttribute("guid",$user.ObjectGUID);
-		$xmlRoot.AppendChild($xmlElement)
+		$xmlRoot.AppendChild($xmlElement) | Out-Null
 	}
 	$groups = Get-ADGroup -Filter {*} -Properties @("SID","ObjectGUID")
 	ForEach ($group in $groups) {
 		$xmlElement = $xmlDoc.CreateElement("item");
 		$xmlElement.SetAttribute("sid",$group.SID);
 		$xmlElement.SetAttribute("guid",$group.ObjectGUID);
-		$xmlRoot.AppendChild($xmlElement)
+		$xmlRoot.AppendChild($xmlElement) | Out-Null
 	}
 	$computers = Get-ADComputer -Filter {*} -Properties @("SID","ObjectGUID")
 	ForEach ($computer in $computers) {
 		$xmlElement = $xmlDoc.CreateElement("item");
 		$xmlElement.SetAttribute("sid",$computer.SID);
 		$xmlElement.SetAttribute("guid",$computer.ObjectGUID);
-		$xmlRoot.AppendChild($xmlElement)
+		$xmlRoot.AppendChild($xmlElement) | Out-Null
 	}
 	$xmlDoc.Save($tmpXmlFile)
 	$files += $tmpXmlFile
@@ -170,7 +170,7 @@ Try {
 $filesCompressed = @()
 Try {
 	ForEach ($file in $files) {
-		Write-GZip $file -Quiet
+		Write-GZip $file -Quiet | Out-Null
 		$tmpZipFile = $file + ".gz"
 		$filesCompressed += $tmpZipFile
 	}

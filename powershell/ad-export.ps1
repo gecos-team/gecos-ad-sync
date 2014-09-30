@@ -2,7 +2,7 @@
 $GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # This is a demo GECOSCC
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "5429882c2f80cc4cf31d587f" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIRootOU = "542a75912f80cc58e0542a89" # Could be "root" or "_id" (see the url to get the "_id" value)
 $GecosCCAPIMaster = $True # Set that these nodes can't be edited by GECOSCC
 
 # PowerShell v2
@@ -195,7 +195,7 @@ Try {
 # Save GZIP and delete XML
 Try {
 	#$tmpZipFile = [IO.Path]::GetTempFileName()
-	Write-GZip $tmpXmlFile -Quiet
+	Write-GZip $tmpXmlFile -Quiet | Out-Null
 	$tmpZipFile = $tmpXmlFile + ".gz"
 } Catch {
 	$Host.UI.WriteErrorLine("ERROR: Can't write the GZIP")
