@@ -2,7 +2,7 @@
 $GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # This is a demo GECOSCC
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "542a75912f80cc58e0542a89" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIRootOU = "542ad8302f80cc5fd6e77537" # Could be "root" or "_id" (see the url to get the "_id" value)
 $GecosCCAPIMaster = $True # Set that these nodes can't be edited by GECOSCC
 
 # PowerShell v2

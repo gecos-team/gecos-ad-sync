@@ -2,7 +2,7 @@
 $GecosCCAPIUrl = "http://gecoscc/api/gpo_import/" # This is a demo GECOSCC
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "542a75912f80cc58e0542a89" # Could be "root" or "_id" (see the url to get the "_id" value)
+$GecosCCAPIRootOU = "542ad8302f80cc5fd6e77537" # Could be "root" or "_id" (see the url to get the "_id" value)
 $GecosCCAPIMasterPolicies = @("folder_sync_res", "desktop_background_res") # Policies that can't be modified by GECOSCC
 
 # PowerShell v2
@@ -119,6 +119,7 @@ function HttpPost-Files() {
 
 # Imports dependences
 Import-Module "$PSScriptRoot\PSCX"
+Import-Module ActiveDirectory # Overwrite Get-ADObject
 Import-Module GroupPolicy
 
 $files = @()
