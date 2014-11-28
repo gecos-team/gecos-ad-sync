@@ -1,9 +1,13 @@
 ﻿# Configuration
-$GecosCCAPIUrl = "http://gecoscc/api/gpo_import/" # This is a demo GECOSCC
+$GecosCCAPIUrl = "http://gecoscc/api/gpo_import/" # GECOSCC AD policies API URL
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "542ad8302f80cc5fd6e77537" # Could be "root" or "_id" (see the url to get the "_id" value)
-$GecosCCAPIMasterPolicies = @("folder_sync_res", "desktop_background_res") # Policies that can't be modified by GECOSCC
+$GecosCCAPIDomainId = "542ad8302f80cc5fd6e77537" # Domain id
+
+# Policies that can't be modified by GECOSCC: a subset of these:
+# "desktop_background", "sharing_permissions", "automatic_updates", "file_browser", "user_mount", "shutdown_options"
+$GecosCCAPIMasterPolicies = @("folder_sync_res", "desktop_background_res")
+# End configuration
 
 # PowerShell v2
 $PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
@@ -78,9 +82,9 @@ function HttpPost-Files() {
 		# Add rootOU to POST
 		[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
 		[void]$contents.AppendLine($header);
-		[void]$contents.AppendLine("Content-Disposition:form-data;name=""rootOU""");
+		[void]$contents.AppendLine("Content-Disposition:form-data;name=""domainId""");
 		[void]$contents.AppendLine();
-		[void]$contents.AppendLine($GecosCCAPIRootOU);
+		[void]$contents.AppendLine($GecosCCAPIDomainId);
 		$bytes += $Encoding.GetBytes($contents);
 
 		# Add masterPolicies to POST

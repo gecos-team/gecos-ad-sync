@@ -1,9 +1,10 @@
 ﻿# Configuration
-$GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # This is a demo GECOSCC
+$GecosCCAPIUrl = "http://gecoscc/api/ad_import/" # GECOSCC AD API URL
 $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
-$GecosCCAPIRootOU = "542ad8302f80cc5fd6e77537" # Could be "root" or "_id" (see the url to get the "_id" value)
-$GecosCCAPIMaster = $True # Set that these nodes can't be edited by GECOSCC
+$GecosCCAPIDomainId = "542ad8302f80cc5fd6e77537" # Domain id
+$GecosCCAPIMaster = $True # $True AD is master, $False GCC is master
+# End configuration
 
 # PowerShell v2
 $PSScriptRoot = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
@@ -97,11 +98,11 @@ function HttpPost-File() {
 			$footer = "--{0}--" -f $boundary;
 			[System.Text.StringBuilder]$contents = New-Object System.Text.StringBuilder;
 
-			# Add rootOU to POST
+			# Add domainId to POST
 			[void]$contents.AppendLine($header);
-			[void]$contents.AppendLine("Content-Disposition:form-data;name=""rootOU""");
+			[void]$contents.AppendLine("Content-Disposition:form-data;name=""domainId""");
 			[void]$contents.AppendLine();
-			[void]$contents.AppendLine($GecosCCAPIRootOU);
+			[void]$contents.AppendLine($GecosCCAPIDomainId);
 
 			# Add master to POST
 			[void]$contents.AppendLine($header);
