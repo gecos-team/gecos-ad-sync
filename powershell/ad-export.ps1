@@ -4,6 +4,7 @@ $GecosCCAPIUsername = "ad-import"
 $GecosCCAPIPassword = "ad-import"
 $GecosCCAPIDomainId = "542ad8302f80cc5fd6e77537" # Domain id
 $GecosCCAPIMaster = $True # $True AD is master, $False GCC is master
+$SystemType = "ad"
 # End configuration
 
 # PowerShell v2
@@ -109,6 +110,12 @@ function HttpPost-File() {
 			[void]$contents.AppendLine("Content-Disposition:form-data;name=""master""");
 			[void]$contents.AppendLine();
 			[void]$contents.AppendLine($GecosCCAPIMaster);
+
+			# Add systemType to POST
+			[void]$contents.AppendLine($header);
+			[void]$contents.AppendLine("Content-Disposition:form-data;name=""systemType""");
+			[void]$contents.AppendLine();
+			[void]$contents.AppendLine($SystemType);
 
 			[void]$contents.AppendLine($header);
 			[void]$contents.AppendLine($fileHeader);
