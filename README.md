@@ -20,7 +20,7 @@ you should configure the next variables in the top of the file mongo2ldap.rb to 
 
 ``` mongo_port ``` The Mongo Port
 
-``` data_types ``` its must be and array with the data types you want import in ldap, something like  ['ou', 'user','computer','group','storage','repository', 'repository']
+``` data_types ``` its must be and array with the data types you want import in ldap/AD, something like  ['ou', 'user','computer','group','storage','repository', 'repository']
 
 ``` ldap_host ``` The LDAP/AD host, like "dominio.junta-andalucia.es"
 
